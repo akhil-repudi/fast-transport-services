@@ -1,0 +1,6 @@
+{
+  "name": "Transport Route Optimization System",
+  "description": "A Software Engineering PBL prototype for finding and comparing shortest, fastest, and lowest-cost transport routes using Dijkstra's algorithm on sample road network data.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
