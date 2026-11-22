@@ -220,6 +220,52 @@ class TestTransportAPI(unittest.TestCase):
         self.assertEqual(len(trips), 1)
         self.assertGreaterEqual(len(trips[0]["results"]), 1)
 
+    def test_intercity_distances_hyderabad_vijayawada_visakhapatnam_bengaluru(self) -> None:
+        hyd = self._location_id("Hyderabad")
+        vja = self._location_id("Vijayawada")
+        vsk = self._location_id("Visakhapatnam")
+        blr = self._location_id("Bengaluru")
+
+        # Hyderabad -> Vijayawada: shortest = 275.0 km
+        res_hv = self.client.post(
+            "/api/search",
+            json={"source_id": hyd, "destination_id": vja, "preference": "shortest"},
+        )
+        self.assertEqual(res_hv.status_code, 200)
+        self.assertEqual(res_hv.get_json()["routes"][0]["total_distance_km"], 275.0)
+
+        # Vijayawada -> Visakhapatnam: shortest = 350.0 km
+        res_vv = self.client.post(
+            "/api/search",
+            json={"source_id": vja, "destination_id": vsk, "preference": "shortest"},
+        )
+        self.assertEqual(res_vv.status_code, 200)
+        self.assertEqual(res_vv.get_json()["routes"][0]["total_distance_km"], 350.0)
+
+        # Hyderabad -> Bengaluru: shortest = 575.0 km
+        res_hb = self.client.post(
+            "/api/search",
+            json={"source_id": hyd, "destination_id": blr, "preference": "shortest"},
+        )
+        self.assertEqual(res_hb.status_code, 200)
+        self.assertEqual(res_hb.get_json()["routes"][0]["total_distance_km"], 575.0)
+
+        # Hyderabad -> Visakhapatnam: shortest = 590.0 km, fastest = 605 min (via Vijayawada)
+        res_hs = self.client.post(
+            "/api/search",
+            json={"source_id": hyd, "destination_id": vsk, "preference": "shortest"},
+        )
+        self.assertEqual(res_hs.status_code, 200)
+        self.assertEqual(res_hs.get_json()["routes"][0]["total_distance_km"], 590.0)
+
+        res_hf = self.client.post(
+            "/api/search",
+            json={"source_id": hyd, "destination_id": vsk, "preference": "fastest"},
+        )
+        self.assertEqual(res_hf.status_code, 200)
+        self.assertEqual(res_hf.get_json()["routes"][0]["total_time_min"], 605.0)
+
 
 if __name__ == "__main__":
     unittest.main()
+

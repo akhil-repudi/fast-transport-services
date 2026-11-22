@@ -77,12 +77,21 @@ function LocationCombobox({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [selectedLoc]);
 
+  const CITY_ALIASES: Record<string, string[]> = {
+    visakhapatnam: ['vishakapatnam', 'vishakhapatnam', 'vizag'],
+    bengaluru: ['benguluru', 'bangalore', 'blr'],
+    hyderabad: ['hyd', 'hyderbad'],
+    vijayawada: ['vja', 'bezawada'],
+  };
+
   const filtered = locations.filter((loc) => {
     const q = query.trim().toLowerCase();
     if (!q || (selectedLoc && q === selectedLoc.name.toLowerCase())) return true;
+    const aliases = CITY_ALIASES[loc.name.toLowerCase()] || [];
     return (
       loc.name.toLowerCase().includes(q) ||
-      (loc.zone && loc.zone.toLowerCase().includes(q))
+      (loc.zone && loc.zone.toLowerCase().includes(q)) ||
+      aliases.some((alias) => alias.includes(q) || q.includes(alias))
     );
   });
 
@@ -422,28 +431,66 @@ export function RoutePlanner({
             {searching ? 'Optimizing Routes...' : 'Find Routes'}
           </button>
 
-          {/* Quick Scenario Presets */}
-          <div className="pt-4 border-t border-slate-200 space-y-2">
-            <div className="text-xs font-semibold text-slate-700">Quick Sample Scenarios</div>
+          {/* Quick Inter-City & Sample Scenarios */}
+          <div className="pt-4 border-t border-slate-200 space-y-2.5">
+            <div className="text-xs font-semibold text-slate-700">
+              Inter-City Corridors (Accurate Sample km)
+            </div>
+            <div className="grid grid-cols-1 gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => applyQuickPair('Hyderabad', 'Vijayawada', 'shortest')}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 text-slate-800 transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <span>Hyderabad → Vijayawada</span>
+                <span className="font-mono text-slate-500">275 km</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickPair('Vijayawada', 'Visakhapatnam', 'shortest')}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 text-slate-800 transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <span>Vijayawada → Visakhapatnam</span>
+                <span className="font-mono text-slate-500">350 km</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickPair('Hyderabad', 'Visakhapatnam', 'shortest')}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 text-slate-800 transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <span>Hyderabad → Visakhapatnam</span>
+                <span className="font-mono text-slate-500">590 km</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickPair('Hyderabad', 'Bengaluru', 'fastest')}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 text-slate-800 transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <span>Hyderabad → Bengaluru</span>
+                <span className="font-mono text-slate-500">575 km</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickPair('Bengaluru', 'Vijayawada', 'fastest')}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 text-slate-800 transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <span>Bengaluru → Vijayawada</span>
+                <span className="font-mono text-slate-500">660 km</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickPair('Bengaluru', 'Visakhapatnam', 'cheapest')}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 text-slate-800 transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <span>Bengaluru → Visakhapatnam</span>
+                <span className="font-mono text-slate-500">1005–1057 km</span>
+              </button>
+            </div>
+
+            <div className="pt-2 text-xs font-semibold text-slate-700">
+              Metro Edge-Case Scenarios
+            </div>
             <div className="space-y-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() =>
-                  applyQuickPair('Central Railway Terminal', 'International Airport Gate', 'fastest')
-                }
-                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
-              >
-                Central Terminal → Airport Gate (Fastest)
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  applyQuickPair('Central Railway Terminal', 'East IT Corridor', 'cheapest')
-                }
-                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
-              >
-                Central Terminal → East IT Corridor (Lowest cost)
-              </button>
               <button
                 type="button"
                 onClick={() =>

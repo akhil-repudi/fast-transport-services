@@ -46,6 +46,11 @@ SAMPLE_LOCATIONS = [
     ("University Science Hub", 13.0219, 77.5671, "North West"),
     ("West Industrial Park", 12.9915, 77.5177, "West"),
     ("Hilltop Relay Station", 13.0620, 77.4820, "Isolated Outpost"),  # Unlinked node for testing no-route cases
+    # Inter-city major hubs (accurate coordinates)
+    ("Hyderabad", 17.3850, 78.4867, "Inter-City · Telangana"),
+    ("Vijayawada", 16.5062, 80.6480, "Inter-City · Andhra Pradesh"),
+    ("Visakhapatnam", 17.6868, 83.2185, "Inter-City · Andhra Pradesh"),
+    ("Bengaluru", 12.9716, 77.5946, "Inter-City · Karnataka"),
 ]
 
 # Bidirectional road segments:
@@ -83,6 +88,18 @@ SAMPLE_ROADS = [
     ("North Tech Campus", "East IT Corridor", 17.8, 34.0, 8.10, "Cross-Town Belt Rd", "arterial"),
     ("Expressway Toll Plaza", "Harbor Freight Depot", 18.5, 24.0, 11.00, "Northeast Freight Spur", "expressway"),
     ("Lakeside Medical Center", "East IT Corridor", 13.4, 28.0, 6.40, "Canal Sideway", "arterial"),
+
+    # Inter-City Highway Corridors: Hyderabad, Vijayawada, Visakhapatnam, Bengaluru
+    ("Hyderabad", "Vijayawada", 275.0, 270.0, 18.50, "NH-65 Express Highway (via Suryapet)", "expressway"),
+    ("Hyderabad", "Vijayawada", 292.0, 315.0, 14.00, "SH-2 Toll-Free Route (via Nalgonda)", "arterial"),
+    ("Vijayawada", "Visakhapatnam", 350.0, 335.0, 22.00, "NH-16 Coastal Expressway (via Rajahmundry)", "expressway"),
+    ("Vijayawada", "Visakhapatnam", 372.0, 390.0, 16.50, "Coastal State Road (via Machilipatnam)", "arterial"),
+    ("Hyderabad", "Visakhapatnam", 590.0, 615.0, 33.00, "NH-365BB Inland Corridor (via Khammam)", "arterial"),
+    ("Hyderabad", "Bengaluru", 575.0, 500.0, 38.00, "NH-44 North-South Expressway (via Kurnool)", "expressway"),
+    ("Hyderabad", "Bengaluru", 615.0, 620.0, 29.50, "Raichur-Ballari Highway", "arterial"),
+    ("Bengaluru", "Vijayawada", 660.0, 595.0, 41.00, "NH-75 / NH-16 Corridor (via Tirupati - Nellore)", "expressway"),
+    ("Bengaluru", "Vijayawada", 685.0, 655.0, 33.00, "Rayalaseema Highway (via Anantapur - Kadapa)", "arterial"),
+    ("Bengaluru", "Visakhapatnam", 1005.0, 910.0, 64.00, "Southern Coastal Express (via Tirupati - Nellore)", "expressway"),
 ]
 
 
@@ -168,12 +185,15 @@ def seed_database(db_path: str | None = None, reset: bool = False) -> dict[str, 
         loc_rows = conn.execute("SELECT location_id, name FROM locations").fetchall()
         loc_map = {r["name"]: r["location_id"] for r in loc_rows}
 
-        # 4. Routes (bidirectional entries if none exist yet)
-        route_count = conn.execute("SELECT COUNT(*) AS cnt FROM routes").fetchone()["cnt"]
-        if route_count == 0:
-            for a, b, dist_km, time_min, cost, road_name, road_type in SAMPLE_ROADS:
-                a_id = loc_map[a]
-                b_id = loc_map[b]
+        # 4. Routes (idempotent bidirectional insertion per segment)
+        existing_routes = {
+            (r["start_location_id"], r["end_location_id"], r["road_name"])
+            for r in conn.execute("SELECT start_location_id, end_location_id, road_name FROM routes").fetchall()
+        }
+        for a, b, dist_km, time_min, cost, road_name, road_type in SAMPLE_ROADS:
+            a_id = loc_map[a]
+            b_id = loc_map[b]
+            if (a_id, b_id, road_name) not in existing_routes:
                 conn.execute(
                     """
                     INSERT INTO routes (start_location_id, end_location_id, distance_km, time_min, cost, road_name, road_type)
@@ -181,6 +201,9 @@ def seed_database(db_path: str | None = None, reset: bool = False) -> dict[str, 
                     """,
                     (a_id, b_id, dist_km, time_min, cost, road_name, road_type),
                 )
+                existing_routes.add((a_id, b_id, road_name))
+                created_counts["routes"] += 1
+            if (b_id, a_id, road_name) not in existing_routes:
                 conn.execute(
                     """
                     INSERT INTO routes (start_location_id, end_location_id, distance_km, time_min, cost, road_name, road_type)
@@ -188,7 +211,8 @@ def seed_database(db_path: str | None = None, reset: bool = False) -> dict[str, 
                     """,
                     (b_id, a_id, dist_km, time_min, cost, road_name, road_type),
                 )
-                created_counts["routes"] += 2
+                existing_routes.add((b_id, a_id, road_name))
+                created_counts["routes"] += 1
 
         # 5. Initial sample trip & notifications for demo passenger
         passenger_row = conn.execute(
